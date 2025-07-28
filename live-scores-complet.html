@@ -1,0 +1,96 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Scores en Direct - API Football</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0d1117; color: #c9d1d9; padding: 20px; }
+    h1 { color: #58a6ff; }
+    .match { border-bottom: 1px solid #30363d; margin-bottom: 16px; padding-bottom: 12px; }
+    .header { display: flex; align-items: center; justify-content: space-between; }
+    .team { display: flex; align-items: center; gap: 6px; }
+    .team img { width: 25px; height: 25px; border-radius: 50%; }
+    .time { font-weight: bold; color: #ffa657; margin-top: 4px; }
+    .score { font-size: 18px; color: #58a6ff; text-align: center; }
+    .events { margin-top: 8px; font-size: 14px; line-height: 1.4; color: #cdd9e5; }
+    button { background: #238636; color: white; border: none; padding: 8px 16px; margin-bottom: 20px; cursor: pointer; border-radius: 5px; }
+    button:hover { background: #2ea043; }
+  </style>
+</head>
+<body>
+  <h1>⚽ Scores en Direct</h1>
+  <button onclick="getLiveScores()">🔄 Actualiser maintenant</button>
+  <div id="matches">Chargement en cours...</div>
+
+  <script>
+    const apiKey = "1255397b6amshf806727f434f9ffp1c4e14jsncc9a9c58ff23";
+    const headers = {
+      "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
+      "x-rapidapi-key": apiKey
+    };
+
+    async function getLiveScores() {
+      try {
+        const res = await fetch("https://api-football-v1.p.rapidapi.com/v3/fixtures?live=all", {
+          method: "GET",
+          headers: headers
+        });
+        const data = await res.json();
+        const container = document.getElementById("matches");
+        container.innerHTML = "";
+
+        if (data.response.length === 0) {
+          container.innerHTML = "<p>Aucun match en direct actuellement.</p>";
+          return;
+        }
+
+        for (const match of data.response) {
+          const fixtureId = match.fixture.id;
+          const home = match.teams.home;
+          const away = match.teams.away;
+          const homeGoals = match.goals.home;
+          const awayGoals = match.goals.away;
+          const time = match.fixture.status.elapsed + "'";
+
+          const events = await fetch(`https://api-football-v1.p.rapidapi.com/v3/fixtures/events?fixture=${fixtureId}`, {
+            method: "GET",
+            headers: headers
+          });
+          const eventData = await events.json();
+
+          let eventsHtml = "";
+          if (eventData.response && eventData.response.length > 0) {
+            eventData.response.forEach(e => {
+              const team = e.team.name;
+              const player = e.player.name;
+              const type = e.type;
+              const detail = e.detail;
+              eventsHtml += `⚽ ${e.time.elapsed}' - ${team}: ${player} (${type}${detail !== type ? ' - ' + detail : ''})<br>`;
+            });
+          }
+
+          const div = document.createElement("div");
+          div.className = "match";
+          div.innerHTML = `
+            <div class="header">
+              <div class="team"><img src="${home.logo}" alt="${home.name}"> ${home.name}</div>
+              <div class="score">${homeGoals} - ${awayGoals}</div>
+              <div class="team">${away.name} <img src="${away.logo}" alt="${away.name}"></div>
+            </div>
+            <div class="time">⏱ ${time}</div>
+            <div class="events">${eventsHtml || "<i>Pas d’événements pour l’instant.</i>"}</div>
+          `;
+          container.appendChild(div);
+        }
+      } catch (err) {
+        document.getElementById("matches").innerText = "Erreur de chargement...";
+        console.error(err);
+      }
+    }
+
+    getLiveScores();
+    setInterval(getLiveScores, 30000); // Rafraîchissement automatique toutes les 30s
+  </script>
+</body>
+</html>
